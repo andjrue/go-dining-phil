@@ -6,17 +6,21 @@ import (
 	"time"
 )
 
-const numPhil int = 10
-const maxSleepTime = 50
+// Constants
 
-var food = 500
+const numPhil int = 200
+const maxSleepTime int = 10
+
+// Variables to be updated later
+
+var food int = 500000
 var foodMutex sync.Mutex
 var m = make(map[int]int)
 
 type Philosopher struct {
-	id                  int
-	leftFork, rightFork *sync.Mutex
-	mu                  sync.Mutex
+	id        int
+	leftFork  *sync.Mutex
+	rightFork *sync.Mutex
 }
 
 func (p *Philosopher) think() {
@@ -24,49 +28,32 @@ func (p *Philosopher) think() {
 	time.Sleep(time.Duration(maxSleepTime) * time.Millisecond)
 }
 
-func getForks(leftFork, rightFork chan struct{}) bool {
-	select {
-	case leftFork <- struct{}{}:
-		select {
-		case rightFork <- struct{}{}:
-			return true
-		default:
-			return false
-		}
-	default:
-		return false
-	}
-}
-
-func putForks(leftFork, rightFork chan struct{}) {
-	<-leftFork
-	<-rightFork
-}
-
 func (p *Philosopher) eatFood(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {
 		foodMutex.Lock()
-		p.leftFork.Lock()
 		p.rightFork.Lock()
+		p.leftFork.Lock()
 
 		if food > 0 {
-			fmt.Printf("Philosopher %d is eating. \n", p.id)
+			fmt.Printf("Philosopher %d is eating \n", p.id)
 			food--
-			m[p.id]++
+			m[p.id]++ // Increase food eaten
 			fmt.Printf("Food Remaining: %d \n", food)
 			foodMutex.Unlock()
 
 			time.Sleep(time.Duration(maxSleepTime) * time.Millisecond)
 			p.think()
+
 		} else {
-			foodMutex.Unlock()
 			p.rightFork.Unlock()
 			p.leftFork.Unlock()
+			foodMutex.Unlock()
 			return
 		}
 
+		// After we eat we can release the forks
 		p.rightFork.Unlock()
 		p.leftFork.Unlock()
 	}
@@ -85,13 +72,12 @@ func createPhilArr(numPhil int) []*Philosopher {
 			leftFork:  forks[i],
 			rightFork: forks[(i+1)%numPhil],
 		}
-
 	}
+
 	return philosophers
 }
 
 func main() {
-
 	var wg sync.WaitGroup
 
 	philosophers := createPhilArr(numPhil)
@@ -102,7 +88,6 @@ func main() {
 	}
 
 	wg.Wait()
-	fmt.Println("All food has been eaten. Map is below.\n")
+	fmt.Println("All food has been eaten.")
 	fmt.Printf("Food Map: \n %d", m)
-
 }
